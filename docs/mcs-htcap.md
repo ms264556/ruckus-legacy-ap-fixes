@@ -50,12 +50,19 @@ advertises the real Tx capability:
 
 | site | stock | patched | result (byte 12) |
 |---|---|---|---|
-| 2 streams | `ori 0x10` (`0x34420010`) | `ori 0x05` (`0x34420005`) | Tx MCS Set Defined + bits2-3 = 1 (2 streams) |
-| 3 streams | `ori 0x20` (`0x34420020`) | `ori 0x09` (`0x34420009`) | Tx MCS Set Defined + bits2-3 = 2 (3 streams) |
+| 2 streams | `ori 0x10` (`0x34420010`) | `ori 0x01` (`0x34420001`) | Tx MCS Set Defined |
+| 3 streams | `ori 0x20` (`0x34420020`) | `ori 0x01` (`0x34420001`) | Tx MCS Set Defined |
 | Rx != Tx | `ori 0x40` (`0x34420040`) | `ori 0x02` (`0x34420002`) | Tx Rx MCS Set Not Equal (bit 1) |
 
-These combine correctly at runtime (e.g. 2-stream + not-equal → `0x05 | 0x02 =
-0x07`). A 1×1 AP hits none of the stream ORs and (Rx == Tx) skips the not-equal
+The Tx Maximum Number of Spatial Streams field (bits 2-3) is reserved and must
+be 0 unless *Tx Rx MCS Set Not Equal* is set, so a symmetric radio advertises
+only *Tx MCS Set Defined* (0x01). v0.1.0 wrote 0x05 / 0x09 (Defined plus the
+stream count) and the 7.x parser still refused it: its `ieee80211_parse_htcap`
+accepts Defined=1 only when Not Equal is set or bits 2-4 are all clear. v0.1.1
+writes 0x01, which a ZF7962 (2.6.0.0.388) was seen joining an R560 (7.2) with.
+
+These combine correctly at runtime (2-stream + not-equal → `0x01 | 0x02 = 0x03`,
+Defined and Not Equal with the stream field left for the Tx MCS bitmap). A 1×1 AP hits none of the stream ORs and (Rx == Tx) skips the not-equal
 OR, so byte 12 stays `0x00` — already conformant.
 
 The patcher locates each site by a byte signature (see `src/mips/wlanpatch.c`):

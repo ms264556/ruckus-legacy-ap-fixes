@@ -8,12 +8,14 @@
  * at 0xf(r31) in the frame) with the wrong bits and never sets "Tx MCS Set
  * Defined", so a 7.x root rejects the association. Three sites, one per
  * Tx-stream path:
- *     2 streams  ori r0,r0,0x10 -> 0x05  (defined + 2 Tx streams)
- *     3 streams  ori r0,r0,0x20 -> 0x09  (defined + 3 Tx streams)
+ *     2 streams  ori r0,r0,0x10 -> 0x01  (Tx MCS Set Defined)
+ *     3 streams  ori r0,r0,0x20 -> 0x01  (Tx MCS Set Defined)
  *     Rx != Tx   ori r0,r0,0x40 -> 0x02  (Tx Rx MCS Set Not Equal)
  *
  * PPC ori r0,r0,UIMM encodes as 0x60000000|UIMM, so the rewrites are
- * 0x60000010->0x60000005, 0x60000020->0x60000009, 0x60000040->0x60000002.
+ * 0x60000010->0x60000001, 0x60000020->0x60000001, 0x60000040->0x60000002.
+ * The Tx Maximum Spatial Streams field is reserved (0) unless Not Equal is
+ * set; the 7.x parser rejects a byte that has it set with Not Equal clear.
  * See docs/mcs-htcap.md. The mesh-vlan-rx fix is not included here (not yet
  * confirmed on this family).
  *
@@ -83,7 +85,7 @@ static const u8 msk_mcs_a[48] = {
     1,1,1,0, 1,1,1,1, 1,1,1,1,   /* index 39: ori 0x40 immediate */
 };
 static const struct edit edit_mcs_a[] = {
-    { 16, 0x60000010u, 0x60000005u },   /* 2 Tx streams: defined + bits2-3=1 */
+    { 16, 0x60000010u, 0x60000001u },   /* 2 Tx streams: Tx MCS Set Defined */
     { 36, 0x60000040u, 0x60000002u },   /* Rx != Tx: Tx Rx MCS Set Not Equal */
 };
 
@@ -100,7 +102,7 @@ static const u8 msk_mcs_b[24] = {
     1,1,1,0, 1,1,1,1, 1,1,1,1,   /* index 15: ori 0x20 immediate */
 };
 static const struct edit edit_mcs_b[] = {
-    { 12, 0x60000020u, 0x60000009u },   /* 3 Tx streams: defined + bits2-3=2 */
+    { 12, 0x60000020u, 0x60000001u },   /* 3 Tx streams: Tx MCS Set Defined */
 };
 
 static const struct rule rules[] = {

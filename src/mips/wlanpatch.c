@@ -12,9 +12,12 @@
  *                 (MCS-set byte 12) with the wrong bits and never sets "Tx MCS
  *                 Set Defined", so a 7.x root rejects the association with
  *                 "Rx MCS set mismatch".  Three sites, one per Tx-stream path:
- *                   2 streams  ori 0x10 -> 0x05  (defined + 2 Tx streams)
- *                   3 streams  ori 0x20 -> 0x09  (defined + 3 Tx streams)
+ *                   2 streams  ori 0x10 -> 0x01  (Tx MCS Set Defined)
+ *                   3 streams  ori 0x20 -> 0x01  (Tx MCS Set Defined)
  *                   Rx != Tx   ori 0x40 -> 0x02  (Tx Rx MCS Set Not Equal)
+ *                 The Tx Maximum Spatial Streams field is reserved (0) unless
+ *                 Not Equal is set, and the 7.x parser rejects a byte that has
+ *                 it set with Not Equal clear (0x05 was still denied).
  *
  * wlan base and size are module parameters supplied from /proc/modules:
  *
@@ -122,7 +125,7 @@ static const u8 msk_mcs_a[64] = {
     1,1,1,1, 1,1,1,1,
 };
 static const struct edit edit_mcs_a[] = {
-    { 32, 0x34420010u, 0x34420005u },   /* 2 Tx streams: defined + bits2-3=1 */
+    { 32, 0x34420010u, 0x34420001u },   /* 2 Tx streams: Tx MCS Set Defined */
     { 52, 0x34420040u, 0x34420002u },   /* Rx != Tx: Tx Rx MCS Set Not Equal */
 };
 
@@ -145,7 +148,7 @@ static const u8 msk_mcs_b[28] = {
     0,0,0,0,            /* 24-27: j (reloc) */
 };
 static const struct edit edit_mcs_b[] = {
-    { 8, 0x34420020u, 0x34420009u },    /* 3 Tx streams: defined + bits2-3=2 */
+    { 8, 0x34420020u, 0x34420001u },    /* 3 Tx streams: Tx MCS Set Defined */
 };
 
 /* ---- rule table ---------------------------------------------------------- */
