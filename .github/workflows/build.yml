@@ -47,8 +47,14 @@ jobs:
           ARCH=ppc  ./scripts/build.sh
           ARCH=arm  ./scripts/build.sh
 
-      - name: Package and checksum
+      - name: Package
         run: ./scripts/package.sh
+
+      - name: Assemble release assets
+        run: |
+          ver="$GITHUB_REF_NAME"
+          case "$GITHUB_REF" in refs/tags/*) ;; *) ver="$(git rev-parse --short HEAD)" ;; esac
+          ./scripts/release.sh "$ver"
 
       - name: Show module facts
         run: |
@@ -62,26 +68,29 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ruckus-legacy-ap-fixes-${{ github.sha }}
-          path: dist/
+          path: release/
           if-no-files-found: error
 
       - name: Attest build provenance
         if: github.event_name != 'pull_request'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-path: dist/**/*
+          subject-path: release/*
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          ( cd dist && zip -r "../ruckus-legacy-ap-fixes-${GITHUB_REF_NAME}.zip" . )
-          gh release create "$GITHUB_REF_NAME" \
-            "ruckus-legacy-ap-fixes-${GITHUB_REF_NAME}.zip" \
+          gh release create "$GITHUB_REF_NAME" release/* \
             --title "$GITHUB_REF_NAME" --notes-file - <<EOF
-          Built by GitHub Actions run ${{ github.run_id }} from commit ${{ github.sha }}.
+          Runtime wlan.ko bug-fix modules for discontinued Ruckus APs, built by
+          GitHub Actions run ${{ github.run_id }} from commit ${{ github.sha }}.
 
-          Verify any file with: \`gh attestation verify <file> --repo ${{ github.repository }}\`
-          and compare against SHA256SUMS inside the archive.
+          Each \`wlanpatch-<arch>.ko\` is a loadable kernel module; each
+          \`ruckus-legacy-ap-fixes-<arch>-${GITHUB_REF_NAME}.tar.gz\` bundles it with
+          the boot hook and manifest for install.
+
+          Verify any asset: \`gh attestation verify <file> --repo ${{ github.repository }}\`
+          then check it against \`SHA256SUMS\`.
           EOF

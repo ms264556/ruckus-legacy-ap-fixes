@@ -1,5 +1,6 @@
 out/
 dist/
+release/
 *.o
 *.ko
 __pycache__/
