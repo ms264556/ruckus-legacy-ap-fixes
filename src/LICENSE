@@ -1,0 +1,22 @@
+The source under this directory (src/) builds loadable Linux kernel modules.
+
+SPDX-License-Identifier: GPL-2.0-only
+
+These modules declare MODULE_LICENSE("GPL") and resolve kernel symbols
+(including GPL-only symbols such as kallsyms_lookup_name) at load time, so they
+are derivative works of the Linux kernel and are licensed under version 2 of
+the GNU General Public License, as published by the Free Software Foundation.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License version 2 as published by the Free
+Software Foundation.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+The full text of GPL-2.0-only is available at:
+    https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
+
+Everything outside src/ (build scripts, deploy/ scripts, documentation) is MIT
+licensed; see the top-level LICENSE and NOTICE.md.

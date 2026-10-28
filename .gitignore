@@ -1,0 +1,7 @@
+out/
+dist/
+*.o
+*.ko
+__pycache__/
+*.pyc
+*.zip

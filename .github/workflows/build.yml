@@ -1,0 +1,87 @@
+name: build
+
+# Builds the runtime wlan.ko patchers for every supported architecture from the
+# pinned sources in this repository. Each run uploads the modules and their
+# device-side files with SHA256SUMS as a workflow artifact and records a signed
+# build-provenance attestation for every file. A pushed tag v* also publishes a
+# GitHub release with the same files.
+#
+# Verify a downloaded file:  gh attestation verify <file> --repo <owner>/<repo>
+#                            sha256sum -c SHA256SUMS
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04     # pinned image so the cross toolchains are reproducible
+    permissions:
+      contents: write         # release on tags
+      id-token: write         # build-provenance attestation
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install cross toolchains
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-mips-linux-gnu binutils-mips-linux-gnu \
+            gcc-powerpc-linux-gnu binutils-powerpc-linux-gnu \
+            gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi \
+            python3 file
+          mips-linux-gnu-gcc --version | head -1
+          powerpc-linux-gnu-gcc --version | head -1
+          arm-linux-gnueabi-gcc --version | head -1
+
+      - name: Build modules
+        run: |
+          ARCH=mips ./scripts/build.sh
+          ARCH=ppc  ./scripts/build.sh
+          ARCH=arm  ./scripts/build.sh
+
+      - name: Package and checksum
+        run: ./scripts/package.sh
+
+      - name: Show module facts
+        run: |
+          for ko in dist/*/wlanpatch-*.ko; do
+            echo "== $ko =="
+            file "$ko"
+            mips-linux-gnu-objdump -s -j .modinfo "$ko" 2>/dev/null \
+              | grep -a vermagic || true
+          done
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ruckus-legacy-ap-fixes-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+
+      - name: Attest build provenance
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/**/*
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ( cd dist && zip -r "../ruckus-legacy-ap-fixes-${GITHUB_REF_NAME}.zip" . )
+          gh release create "$GITHUB_REF_NAME" \
+            "ruckus-legacy-ap-fixes-${GITHUB_REF_NAME}.zip" \
+            --title "$GITHUB_REF_NAME" --notes-file - <<EOF
+          Built by GitHub Actions run ${{ github.run_id }} from commit ${{ github.sha }}.
+
+          Verify any file with: \`gh attestation verify <file> --repo ${{ github.repository }}\`
+          and compare against SHA256SUMS inside the archive.
+          EOF
