@@ -47,6 +47,12 @@ jobs:
           ARCH=ppc  ./scripts/build.sh
           ARCH=arm  ./scripts/build.sh
 
+      - name: Build static iperf3
+        run: |
+          ARCH=mips ./scripts/build-iperf3.sh
+          ARCH=ppc  ./scripts/build-iperf3.sh
+          ARCH=arm  ./scripts/build-iperf3.sh
+
       - name: Package
         run: ./scripts/package.sh
 
@@ -89,7 +95,9 @@ jobs:
 
           Each \`wlanpatch-<arch>.ko\` is a loadable kernel module; each
           \`ruckus-legacy-ap-fixes-<arch>-${GITHUB_REF_NAME}.tar.gz\` bundles it with
-          the boot hook and manifest for install.
+          the boot hook and manifest for install. Each \`iperf3-<arch>\` is a static
+          iperf3 (upstream source, musl, built here) for speed tests on firmware
+          without one; \`LICENSE.iperf3\` and \`COPYRIGHT.musl\` are their licences.
 
           Verify any asset: \`gh attestation verify <file> --repo ${{ github.repository }}\`
           then check it against \`SHA256SUMS\`.

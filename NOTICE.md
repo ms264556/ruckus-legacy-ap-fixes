@@ -11,6 +11,15 @@ This repository is dual-licensed by directory:
 
 See [`LICENSE`](LICENSE) (MIT) and [`src/LICENSE`](src/LICENSE) (GPL-2.0-only).
 
+## Third-party code in the release
+
+The `iperf3-<arch>` release files are static builds of upstream
+[iperf3](https://github.com/esnet/iperf) 3.21 (BSD-3-Clause, © The Regents of
+the University of California) linked against [musl](https://musl.libc.org/)
+(MIT), as bundled with Zig 0.14.1. Their licence texts are published beside them
+as `LICENSE.iperf3` and `COPYRIGHT.musl`. No other third-party code is
+distributed.
+
 ## No vendor code is redistributed
 
 These modules are original source. They ship **no** Ruckus or vendor binaries,

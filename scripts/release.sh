@@ -5,6 +5,7 @@
 # Produces release/ with, for each architecture built:
 #   wlanpatch-<arch>.ko                            the loadable module (loose)
 #   ruckus-legacy-ap-fixes-<arch>-<ver>.tar.gz     module + hook.sh + manifest.env
+#   iperf3-<arch>, LICENSE.iperf3, COPYRIGHT.musl    static iperf3 (scripts/build-iperf3.sh), when built
 # plus a single release/SHA256SUMS over all of them. CI uploads release/,
 # attests every file in it, and attaches them to the GitHub release.
 #
@@ -37,6 +38,13 @@ emit() {
 emit mips
 emit ppc
 emit arm
+
+# The static iperf3 builds (scripts/build-iperf3.sh), loose, with the licences they carry.
+for f in iperf3-mips iperf3-ppc iperf3-arm LICENSE.iperf3 COPYRIGHT.musl; do
+    [ -f "$BASE/out/iperf3/$f" ] || continue
+    cp -f "$BASE/out/iperf3/$f" "$REL/$f"
+    echo "release asset: $f"
+done
 
 ( cd "$REL" && find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%P\0' \
     | sort -z | xargs -0 sha256sum > SHA256SUMS )

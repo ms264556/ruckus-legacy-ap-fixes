@@ -90,10 +90,32 @@ is out of scope for this repo — copy it there however your setup allows (manua
 To revert without a reboot: `rmmod wlanpatch` (reverts the sites whose signature
 still matches; a reboot always restores the fully stock driver).
 
+## Static iperf3 for speed tests
+
+SmartZone 7.x firmware ships iperf3; 2.6 to 6.1 do not, and have no `nc` or
+`httpd` either. `scripts/build-iperf3.sh` builds a static `iperf3-<arch>` per
+CPU family from the upstream iperf 3.21 release, linked against musl with Zig
+0.14.1 (both pinned by SHA-256), soft-float and without OpenSSL. glibc's static
+binaries refuse the 2.6.32 kernels, so musl it is. A controller copies the
+right one into the AP's `/tmp` (RAM) for an AP-to-AP speed test and deletes it
+afterwards; nothing is installed.
+
+| File | CPU | Runs on (live 2026-11-07) |
+|---|---|---|
+| `iperf3-mips` | MIPS32r2 big-endian | ZF7962, ZF7372 (2.6), H500 (3.6.2), R500 (5.2.2) |
+| `iperf3-ppc` | PowerPC 440 class, big-endian (`-mcpu=440-isel`: no `lwsync`, no `isel`) | R700 (5.1.1) |
+| `iperf3-arm` | ARMv7 little-endian | R560 (7.2, 32-bit userland); 3.6 to 6.1 ARM APs not yet tried |
+
+The first PowerPC build used `lwsync` and died with "Illegal instruction" on the
+R700's 4xx core; the 440 model alone still emits `isel`, which the core lacks
+too.
+
 ## Licences
 
 Kernel-module sources under `src/` are **GPL-2.0-only**; the build scripts,
 `deploy/` scripts and docs are **MIT**. No vendor firmware or code is
-redistributed. See [`NOTICE.md`](NOTICE.md).
+redistributed. The `iperf3-<arch>` release files are built from upstream
+iperf3 (BSD-3-Clause) and musl (MIT); their licences ship beside them as
+`LICENSE.iperf3` and `COPYRIGHT.musl`. See [`NOTICE.md`](NOTICE.md).
 
 This project is not affiliated with or endorsed by Ruckus Networks or CommScope.
