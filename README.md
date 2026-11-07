@@ -25,6 +25,11 @@ that AP actually has, and is a clean no-op for anything it doesn't.
 | PowerPC, big-endian | 2.6.32.24 | `wlanpatch-ppc.ko` | mcs-htcap |
 | ARMv7, little-endian | 3.14.43 | `wlanpatch-arm.ko` | mesh-vlan-rx (the ARM driver does not carry the MCS bug) |
 
+> The PowerPC module carries the empty `.plt` and `.init.plt` sections the
+> 32-bit PowerPC module loader requires, and the build checks for them. On an
+> R700 running 5.1.1.0.2150 (same kernel and module layout as 2.6) it loads,
+> finds none of its patch sites, and unloads with ENODEV.
+
 > The 2.6.0.0.388 release spans two AP architectures: MIPS big-endian (most
 > families) and PowerPC (the R700 / SC8800 / ZF7982 family). The PowerPC
 > `ieee80211_add_htcap` carries the **identical** MCS bug, so `src/ppc/` applies

@@ -67,6 +67,16 @@ $CC -c $CFLAGS -o "$WORK/wlan_fils.o" "$SRC/wlan_fils.c"
 $LD -r -o "$WORK/wlanpatch-$ARCH.ko" "$WORK/wlan_fils.o" "$WORK/wlanpatch.o"
 python3 "$BASE/scripts/patch-module.py" "$WORK/wlanpatch-$ARCH.ko"
 
+# The 32-bit PowerPC module loader refuses a module without .plt and .init.plt
+# ("invalid module format"); src/ppc/wlan_fils.c declares them.
+if [ "$ARCH" = ppc ]; then
+    READELF=${READELF:-powerpc-linux-gnu-readelf}
+    for s in .plt .init.plt; do
+        "$READELF" -S -W "$WORK/wlanpatch-$ARCH.ko" | grep -q " $s " \
+            || { echo "error: wlanpatch-ppc.ko has no $s section; the kernel would refuse it" >&2; exit 1; }
+    done
+fi
+
 mkdir -p "$OUT"
 cp -f "$WORK/wlanpatch-$ARCH.ko" "$OUT/wlanpatch-$ARCH.ko"
 
