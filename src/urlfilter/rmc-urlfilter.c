@@ -6,14 +6,15 @@
  * avpd asks librsm's rsm_urlfilter_get_category for a host's web category; librsm sends a datagram to
  * /tmp/urlfilter_evt.sock and waits for the reply on its own socket. The stock uf_agent answers from its cache and,
  * on a miss, answers all zeros at once and asks BrightCloud in the background (avpd asks again on a later packet of
- * the flow). This daemon does the same, but asks the controller instead: GET /rmc-category?host=<host> through the
+ * the flow). This daemon asks the controller instead, and on a miss waits up to MISS_WAIT_MS for it (librsm waits
+ * 100 ms) so the first flow to a host is decided too; a slower answer is a zeroed reply and is cached for the retry: GET /rmc-category?host=<host> through the
  * AP's SSH tunnel (127.0.0.1:8082), which answers "<id>[,<id>...]" (empty: uncategorized).
  *
  * Wire format, from the 3.6.2 R610 uf_agent (urlfilter event handler 0xaa98, cache answer 0xa6d0), native byte order:
  *   request, 0xb8 bytes: u32 type (2 = lookup) at 0x00, 0x70 bytes of avpd's flow context at 0x04, host at 0x78.
  *   reply,   0x94 bytes: u32 type (1) at 0x00, u32 reputation at 0x04, u32 category[5] at 0x08, u32 index of the
  *            last category at 0x1c, u32 confidence at 0x20, the request's flow context at 0x24.
- * A miss is answered with a zeroed reply, as the stock agent does.
+ * A miss not answered in time gets a zeroed reply, as the stock agent's misses do.
  *
  * Usage: rmc-urlfilter [-f] [-v] [-s socket] [-p pidfile] [-a host:port]
  *   -f  stay in the foreground   -v  log every request (hex) and answer to syslog
@@ -50,6 +51,7 @@
 #define TTL_HIT      3600
 #define TTL_ERROR    30          /* a failed fetch is retried after this */
 #define QUEUE_LEN    64
+#define MISS_WAIT_MS 80          /* librsm waits 100 ms for a reply (select in rsm_urlfilter_get_category) */
 
 struct entry {
     char host[HOST_LEN];
@@ -64,6 +66,7 @@ static char queue[QUEUE_LEN][HOST_LEN];
 static int q_head, q_tail;
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t wake = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t answered = PTHREAD_COND_INITIALIZER;
 static int verbose;
 static const char *sock_path = "/tmp/urlfilter_evt.sock";
 static const char *pid_path = "/var/run/uf_agent.pid";
@@ -167,31 +170,44 @@ static void *worker(void *arg)
         e->ncats = n < 0 ? 0 : n;
         memcpy(e->cats, cats, sizeof cats);
         e->expires = time(NULL) + (n < 0 ? TTL_ERROR : TTL_HIT);
+        pthread_cond_broadcast(&answered);
         pthread_mutex_unlock(&lock);
         if (verbose || n < 0) syslog(n < 0 ? LOG_WARNING : LOG_INFO, "lookup %s: %s%d", host, n < 0 ? "failed " : "categories ", n);
     }
     return NULL;
 }
 
-/* Fills reply for host; returns 1 on a cache answer, 0 on a miss (the host is queued unless already pending). */
+/* The cached answer for host, or NULL; called with lock held. */
+static struct entry *cached(const char *host)
+{
+    struct entry *e = slot(host);
+    return e->state == 2 && strcmp(e->host, host) == 0 && e->expires >= time(NULL) ? e : NULL;
+}
+
+static void fill(const struct entry *e, const unsigned char *req, unsigned char *reply)
+{
+    put32(reply + 0x00, 1);
+    put32(reply + 0x04, REPUTATION);
+    for (int i = 0; i < e->ncats; i++) put32(reply + 0x08 + 4 * i, e->cats[i]);
+    put32(reply + 0x1c, (uint32_t)(e->ncats > 0 ? e->ncats - 1 : 0));
+    put32(reply + 0x20, e->ncats > 0 ? CONFIDENCE : 0);
+    memcpy(reply + 0x24, req + REQ_CONTEXT, CONTEXT_LEN);
+}
+
+/*
+ * Fills reply for host; returns 1 on a cache answer, 2 when the controller answered within MISS_WAIT_MS, 0 on a miss
+ * (a zeroed reply; the host stays queued and avpd's retry finds it cached).
+ */
 static int answer(const char *host, const unsigned char *req, unsigned char *reply)
 {
     memset(reply, 0, REPLY_LEN);
     pthread_mutex_lock(&lock);
-    struct entry *e = slot(host);
+    struct entry *e = cached(host);
+    if (e) { fill(e, req, reply); pthread_mutex_unlock(&lock); return 1; }
+    e = slot(host);
     time_t now = time(NULL);
-    int fresh = e->state && strcmp(e->host, host) == 0 && e->expires >= now;
-    if (fresh && e->state == 2) {
-        put32(reply + 0x00, 1);
-        put32(reply + 0x04, REPUTATION);
-        for (int i = 0; i < e->ncats; i++) put32(reply + 0x08 + 4 * i, e->cats[i]);
-        put32(reply + 0x1c, (uint32_t)(e->ncats > 0 ? e->ncats - 1 : 0));
-        put32(reply + 0x20, e->ncats > 0 ? CONFIDENCE : 0);
-        memcpy(reply + 0x24, req + REQ_CONTEXT, CONTEXT_LEN);
-        pthread_mutex_unlock(&lock);
-        return 1;
-    }
-    if (!fresh && (q_tail + 1) % QUEUE_LEN != q_head) {
+    int pending = e->state == 1 && strcmp(e->host, host) == 0 && e->expires >= now;
+    if (!pending && (q_tail + 1) % QUEUE_LEN != q_head) {
         strcpy(e->host, host);
         e->state = 1;
         e->expires = now + TTL_ERROR;
@@ -199,8 +215,16 @@ static int answer(const char *host, const unsigned char *req, unsigned char *rep
         q_tail = (q_tail + 1) % QUEUE_LEN;
         pthread_cond_signal(&wake);
     }
+    /* Wait a little for the worker, within librsm's 100 ms, so the first flow to a host is decided too. */
+    struct timespec deadline;
+    clock_gettime(CLOCK_REALTIME, &deadline);
+    deadline.tv_nsec += MISS_WAIT_MS * 1000000L;
+    if (deadline.tv_nsec >= 1000000000L) { deadline.tv_sec++; deadline.tv_nsec -= 1000000000L; }
+    while (!(e = cached(host)))
+        if (pthread_cond_timedwait(&answered, &lock, &deadline) == ETIMEDOUT) break;
+    if (e) fill(e, req, reply);
     pthread_mutex_unlock(&lock);
-    return 0;
+    return e ? 2 : 0;
 }
 
 static void on_term(int sig) { (void)sig; unlink(pid_path); unlink(sock_path); _exit(0); }
@@ -301,7 +325,7 @@ int main(int argc, char **argv)
         char host[HOST_LEN];
         normalize((const char *)req + REQ_HOST, HOST_LEN, host);
         int hit = host[0] ? answer(host, req, reply) : (memset(reply, 0, REPLY_LEN), 0);
-        if (verbose) syslog(LOG_INFO, "%s %s", host, hit ? "answered from cache" : "miss: zero reply, lookup queued");
+        if (verbose) syslog(LOG_INFO, "%s %s", host, hit == 1 ? "answered from cache" : hit == 2 ? "answered after a lookup" : "miss: zero reply, lookup queued");
         if (sendto(fd, reply, REPLY_LEN, 0, (struct sockaddr *)&from, fromlen) < 0)
             syslog(LOG_WARNING, "sendto %s: %s", from.sun_path, strerror(errno));
     }
