@@ -115,12 +115,24 @@ The first PowerPC build used `lwsync` and died with "Illegal instruction" on the
 R700's 4xx core; the 440 model alone still emits `isel`, which the core lacks
 too.
 
+## URL filter agent stand-in
+
+SmartZone 3.6.2 ships `avpd` with its web filter on every model, but the H500/C500
+and ZF7372-family images leave out `uf_agent`, the daemon `avpd` asks for a
+host's web category. `src/urlfilter/rmc-urlfilter.c` stands in for it: it
+answers on `/tmp/urlfilter_evt.sock` in the 3.6 wire format and asks the
+controller through the AP's SSH tunnel (`127.0.0.1:8082/rmc-category`).
+`scripts/build-urlfilter.sh` builds `rmc-urlfilter-<arch>` with the same pinned
+Zig and musl as iperf3. `rmc-urlfilter -q <host>` checks a running agent the way
+`librsm` asks it. Proven on an H500 (3.6.2.0.759, MIPS).
+
 ## Licences
 
 Kernel-module sources under `src/` are **GPL-2.0-only**; the build scripts,
 `deploy/` scripts and docs are **MIT**. No vendor firmware or code is
 redistributed. The `iperf3-<arch>` release files are built from upstream
 iperf3 (BSD-3-Clause) and musl (MIT); their licences ship beside them as
-`LICENSE.iperf3` and `COPYRIGHT.musl`. See [`NOTICE.md`](NOTICE.md).
+`LICENSE.iperf3` and `COPYRIGHT.musl`. `src/urlfilter` (a userspace tool, not a
+module) is MIT, like the scripts; its builds link musl. See [`NOTICE.md`](NOTICE.md).
 
 This project is not affiliated with or endorsed by Ruckus Networks or CommScope.

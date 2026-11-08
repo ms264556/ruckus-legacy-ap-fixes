@@ -53,6 +53,12 @@ jobs:
           ARCH=ppc  ./scripts/build-iperf3.sh
           ARCH=arm  ./scripts/build-iperf3.sh
 
+      - name: Build static rmc-urlfilter
+        run: |
+          ARCH=mips ./scripts/build-urlfilter.sh
+          ARCH=ppc  ./scripts/build-urlfilter.sh
+          ARCH=arm  ./scripts/build-urlfilter.sh
+
       - name: Package
         run: ./scripts/package.sh
 
@@ -98,6 +104,8 @@ jobs:
           the boot hook and manifest for install. Each \`iperf3-<arch>\` is a static
           iperf3 (upstream source, musl, built here) for speed tests on firmware
           without one; \`LICENSE.iperf3\` and \`COPYRIGHT.musl\` are their licences.
+          Each \`rmc-urlfilter-<arch>\` is a static stand-in for the URL filter agent
+          that some SmartZone 3.6 images lack (src/urlfilter, musl, built here).
 
           Verify any asset: \`gh attestation verify <file> --repo ${{ github.repository }}\`
           then check it against \`SHA256SUMS\`.
