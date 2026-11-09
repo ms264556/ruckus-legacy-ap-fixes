@@ -7,6 +7,7 @@
 #   ruckus-legacy-ap-fixes-<arch>-<ver>.tar.gz     module + hook.sh + manifest.env
 #   iperf3-<arch>, LICENSE.iperf3, COPYRIGHT.musl    static iperf3 (scripts/build-iperf3.sh), when built
 #   rmc-urlfilter-<arch>                           the uf_agent stand-in (scripts/build-urlfilter.sh), when built
+#   rmc-dpi-shim-<arch>.so                         avpd's DPI memory-gate shim (scripts/build-urlfilter.sh), when built
 # plus a single release/SHA256SUMS over all of them. CI uploads release/,
 # attests every file in it, and attaches them to the GitHub release.
 #
@@ -47,8 +48,9 @@ for f in iperf3-mips iperf3-ppc iperf3-arm LICENSE.iperf3 COPYRIGHT.musl; do
     echo "release asset: $f"
 done
 
-# The uf_agent stand-in (scripts/build-urlfilter.sh), loose; it links musl, whose licence ships with iperf3.
-for f in rmc-urlfilter-mips rmc-urlfilter-ppc rmc-urlfilter-arm; do
+# The uf_agent stand-in and the DPI shim (scripts/build-urlfilter.sh), loose; the agent links musl, whose licence ships
+# with iperf3, and the shim links nothing.
+for f in rmc-urlfilter-mips rmc-urlfilter-ppc rmc-urlfilter-arm rmc-dpi-shim-mips.so rmc-dpi-shim-ppc.so rmc-dpi-shim-arm.so; do
     [ -f "$BASE/out/urlfilter/$f" ] || continue
     cp -f "$BASE/out/urlfilter/$f" "$REL/$f"
     echo "release asset: $f"

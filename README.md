@@ -126,6 +126,13 @@ controller through the AP's SSH tunnel (`127.0.0.1:8082/rmc-category`).
 Zig and musl as iperf3. `rmc-urlfilter -q <host>` checks a running agent the way
 `librsm` asks it. Proven on an H500 (3.6.2.0.759, MIPS).
 
+Those images also run on small-memory models, and 3.6 `avpd` only turns its
+DPI engine on (and with it the web filter) when `MemTotal` is above 200 000 kB:
+`librsm`'s `rsm_mem_support_tm()`. `src/urlfilter/rmc-dpi-shim.c` is that one
+function answering "supported", built as a libc-free `rmc-dpi-shim-<arch>.so`
+and preloaded into `avpd` alone (`LD_PRELOAD=… /usr/sbin/avpd -i cif0 -D`).
+The H500 (125 508 kB) then filters, with about 18 MB still free.
+
 ## Licences
 
 Kernel-module sources under `src/` are **GPL-2.0-only**; the build scripts,

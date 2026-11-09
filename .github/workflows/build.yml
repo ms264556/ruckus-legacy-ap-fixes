@@ -53,7 +53,7 @@ jobs:
           ARCH=ppc  ./scripts/build-iperf3.sh
           ARCH=arm  ./scripts/build-iperf3.sh
 
-      - name: Build static rmc-urlfilter
+      - name: Build static rmc-urlfilter and the DPI shim
         run: |
           ARCH=mips ./scripts/build-urlfilter.sh
           ARCH=ppc  ./scripts/build-urlfilter.sh
@@ -105,7 +105,9 @@ jobs:
           iperf3 (upstream source, musl, built here) for speed tests on firmware
           without one; \`LICENSE.iperf3\` and \`COPYRIGHT.musl\` are their licences.
           Each \`rmc-urlfilter-<arch>\` is a static stand-in for the URL filter agent
-          that some SmartZone 3.6 images lack (src/urlfilter, musl, built here).
+          that some SmartZone 3.6 images lack (src/urlfilter, musl, built here), and
+          each \`rmc-dpi-shim-<arch>.so\` lets avpd run its web filter on 3.6 APs with
+          200 MB of RAM or less (src/urlfilter, no libc, built here).
 
           Verify any asset: \`gh attestation verify <file> --repo ${{ github.repository }}\`
           then check it against \`SHA256SUMS\`.

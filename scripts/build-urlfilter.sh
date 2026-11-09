@@ -1,11 +1,13 @@
 #!/bin/sh
 #
 # build-urlfilter.sh - build a static rmc-urlfilter-<arch>: the stand-in for uf_agent on SmartZone 3.6 images that
-# ship avpd without it (src/urlfilter/rmc-urlfilter.c). Same compiler as build-iperf3.sh: Zig's bundled clang and
-# musl, pinned by version and SHA-256, statically linked, soft-float on MIPS.
+# ship avpd without it (src/urlfilter/rmc-urlfilter.c), and rmc-dpi-shim-<arch>.so, which lets avpd run its DPI engine
+# on 3.6 APs with 200 000 kB of RAM or less (src/urlfilter/rmc-dpi-shim.c). Same compiler as build-iperf3.sh: Zig's
+# bundled clang and musl, pinned by version and SHA-256; the agent statically linked, the shim a libc-free shared
+# object (it is preloaded into a uClibc process); soft-float on MIPS.
 #
 # Usage: ARCH=arm|mips|ppc ./scripts/build-urlfilter.sh
-#   output: out/urlfilter/rmc-urlfilter-<arch>
+#   output: out/urlfilter/rmc-urlfilter-<arch>, out/urlfilter/rmc-dpi-shim-<arch>.so
 #        ZIG=/path/to/zig to use an already unpacked Zig 0.14.1;
 #        DOWNLOADS=<dir> to keep the downloaded tarball (default: a temp dir).
 set -eu
@@ -49,5 +51,7 @@ export ZIG_GLOBAL_CACHE_DIR=$WORK/zig-cache ZIG_LOCAL_CACHE_DIR=$WORK/zig-cache
 "$ZIG" cc -target "$TARGET" -mcpu="$MCPU" -std=c11 -D_DEFAULT_SOURCE -Os -Wall -Wextra -Werror \
     -ffunction-sections -fdata-sections -static -Wl,--gc-sections -s \
     -o "$OUT/rmc-urlfilter-$ARCH" "$BASE/src/urlfilter/rmc-urlfilter.c" -lpthread
-file "$OUT/rmc-urlfilter-$ARCH" 2>/dev/null || true
-ls -l "$OUT/rmc-urlfilter-$ARCH"
+"$ZIG" cc -target "$TARGET" -mcpu="$MCPU" -std=c11 -Os -Wall -Wextra -Werror \
+    -shared -fPIC -nostdlib -rtlib=none -Wl,-z,max-page-size=4096 -s -o "$OUT/rmc-dpi-shim-$ARCH.so" "$BASE/src/urlfilter/rmc-dpi-shim.c"
+file "$OUT/rmc-urlfilter-$ARCH" "$OUT/rmc-dpi-shim-$ARCH.so" 2>/dev/null || true
+ls -l "$OUT/rmc-urlfilter-$ARCH" "$OUT/rmc-dpi-shim-$ARCH.so"
