@@ -50,7 +50,7 @@ export ZIG_GLOBAL_CACHE_DIR=$WORK/zig-cache ZIG_LOCAL_CACHE_DIR=$WORK/zig-cache
 
 "$ZIG" cc -target "$TARGET" -mcpu="$MCPU" -std=c11 -D_DEFAULT_SOURCE -Os -Wall -Wextra -Werror \
     -ffunction-sections -fdata-sections -static -Wl,--gc-sections -s \
-    -o "$OUT/rmc-urlfilter-$ARCH" "$BASE/src/urlfilter/rmc-urlfilter.c" -lpthread
+    -o "$OUT/rmc-urlfilter-$ARCH" "$BASE/src/urlfilter/rmc-urlfilter.c" "$BASE/src/urlfilter/rmc-filter.c" -lpthread
 "$ZIG" cc -target "$TARGET" -mcpu="$MCPU" -std=c11 -Os -Wall -Wextra -Werror \
     -shared -fPIC -nostdlib -rtlib=none -Wl,-z,max-page-size=4096 -s -o "$OUT/rmc-dpi-shim-$ARCH.so" "$BASE/src/urlfilter/rmc-dpi-shim.c"
 file "$OUT/rmc-urlfilter-$ARCH" "$OUT/rmc-dpi-shim-$ARCH.so" 2>/dev/null || true

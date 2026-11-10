@@ -126,6 +126,17 @@ controller through the AP's SSH tunnel (`127.0.0.1:8082/rmc-category`).
 Zig and musl as iperf3. `rmc-urlfilter -q <host>` checks a running agent the way
 `librsm` asks it. Proven on an H500 (3.6.2.0.759, MIPS).
 
+With the controller's filter file (`src/urlfilter/rmc-filter.c`: a binary fuse
+filter of every listed name, about 4.6 bytes a name) the agent answers by itself.
+It fetches the file through the tunnel (`/rmc-filter`) every hour, keeps it in
+`/writable/rmc-content-filter` when there is room, and when the controller has
+been away for 2 days rebuilds it from the lists named in it, downloaded with
+curl, in about 14 bytes of memory a name. `rmc-urlfilter -B <sources> -o <file>`
+and `-L <file> <host>...` build and query a file off the AP; both builds of the
+same lists are byte-identical apart from the header's time and origin. The
+agent answers in each firmware's layout (3.6, 5.x, 6.x/7.x); proven on the H500
+(3.6.2), R500 (5.2.2), R700 (5.1.1), R760 (7.1.1) and R560 (7.2).
+
 Those images also run on small-memory models, and 3.6 `avpd` only turns its
 DPI engine on (and with it the web filter) when `MemTotal` is above 200 000 kB:
 `librsm`'s `rsm_mem_support_tm()`. `src/urlfilter/rmc-dpi-shim.c` is that one
