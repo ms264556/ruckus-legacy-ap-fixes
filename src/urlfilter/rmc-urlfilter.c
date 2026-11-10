@@ -412,9 +412,36 @@ static int http_get_file(const char *path, const char *out_path)
     return 200;
 }
 
-/* The AP's own build from the lists the current filter names (the controller has been away too long). */
+/* MemFree + Cached in kB, or -1 when /proc/meminfo cannot be read. */
+static long memory_left_kb(void)
+{
+    FILE *f = fopen("/proc/meminfo", "r");
+    if (!f) return -1;
+    char line[128];
+    long kb, left = 0;
+    while (fgets(line, sizeof line, f))
+        if (sscanf(line, "MemFree: %ld kB", &kb) == 1 || sscanf(line, "Cached: %ld kB", &kb) == 1) left += kb;
+    fclose(f);
+    return left;
+}
+
+/* The AP's own build from the lists the current filter names (the controller has been away too long). It needs about
+ * BUILD_COST times the filter's size (per-entry arrays in memory, work files in /tmp, the new file), and is skipped,
+ * keeping the current filter, when that would leave less than MEMORY_FLOOR_KB of MemFree + Cached for the AP. */
+#define BUILD_COST      11
+#define MEMORY_FLOOR_KB (16 * 1024)
 static void self_build(void)
 {
+    size_t current = 0;
+    pthread_mutex_lock(&lock);
+    current = filter.size;
+    pthread_mutex_unlock(&lock);
+    long left = memory_left_kb(), need = (long)(current * BUILD_COST / 1024);
+    if (left >= 0 && left - need < MEMORY_FLOOR_KB) {
+        syslog(LOG_WARNING, "filter: no controller for over %d h, but a rebuild needs about %ld kB and only %ld kB is free; keeping the current filter",
+               AWOL_AFTER / 3600, need, left);
+        return;
+    }
     char *sources = NULL;
     size_t len = 0, ca_len = 0, size = 0;
     uint8_t ids[RMC_FILTER_CATS];
