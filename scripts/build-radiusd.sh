@@ -6,14 +6,14 @@
 #
 # hostapd is the upstream 2.11 release with the changes of src/radiusd/apply-patches.py, linked statically against
 # wolfSSL 5.7 (its hostapd profile, --enable-wpas, which has MD4 and DES for MSCHAPv2) and musl, soft-float, with Zig's
-# bundled clang. wolfSSL's autotools build needs autoconf, automake and libtool on the build host:
+# bundled clang. wolfSSL's autotools build needs autoconf, automake and libtool on the build host, the .gz zopfli:
 #
 #   arm   32-bit ARMv7 (3.6 to 7.x ARM APs)
 #   mips  MIPS32r2 big-endian
 #   ppc   32-bit PowerPC big-endian (R700 family)
 #
 # Usage: ARCH=arm|mips|ppc ./scripts/build-radiusd.sh
-#   output: out/radiusd/rmc-radiusd-<arch>, plus the licences the binary carries:
+#   output: out/radiusd/rmc-radiusd-<arch> and rmc-radiusd-<arch>.gz (zopfli), plus the licences the binary carries:
 #   out/radiusd/COPYING.hostapd (BSD-3-Clause), out/radiusd/COPYING.wolfssl (GPL-2.0-or-later), out/radiusd/COPYRIGHT.musl (MIT),
 #   and out/radiusd/rmc-radiusd-src.tar.xz: wolfSSL's GPL makes the binary GPL-2.0-or-later as a whole, and that archive
 #   is its corresponding source (the same file for every ARCH; see below).
@@ -101,7 +101,7 @@ done
 # ...as does every assembly file, and every C file this configuration neither compiles nor #includes (src/ssl.c includes
 # bio.c, conf.c, pk.c, x509*.c and the ssl_*.c below; wolfcrypt's asm.c, evp.c and misc.c are included by others).
 find "$WOLF/wolfcrypt/src" -maxdepth 1 -type f \( -name '*.S' -o -name '*.asm' -o -name '*.i' \) -delete
-keep_c "$WOLF" " src/bio.c src/conf.c src/crl.c src/internal.c src/keys.c src/ocsp.c src/pk.c src/ssl.c src/ssl_asn1.c src/ssl_bn.c src/ssl_certman.c src/ssl_crypto.c src/ssl_load.c src/ssl_misc.c src/ssl_p7p12.c src/ssl_sess.c src/tls.c src/tls13.c src/wolfio.c src/x509.c src/x509_str.c wolfcrypt/src/aes.c wolfcrypt/src/arc4.c wolfcrypt/src/asm.c wolfcrypt/src/asn.c wolfcrypt/src/chacha.c wolfcrypt/src/chacha20_poly1305.c wolfcrypt/src/cmac.c wolfcrypt/src/coding.c wolfcrypt/src/cpuid.c wolfcrypt/src/des3.c wolfcrypt/src/dh.c wolfcrypt/src/dsa.c wolfcrypt/src/ecc.c wolfcrypt/src/error.c wolfcrypt/src/evp.c wolfcrypt/src/hash.c wolfcrypt/src/hmac.c wolfcrypt/src/kdf.c wolfcrypt/src/logging.c wolfcrypt/src/md4.c wolfcrypt/src/md5.c wolfcrypt/src/memory.c wolfcrypt/src/misc.c wolfcrypt/src/pkcs12.c wolfcrypt/src/poly1305.c wolfcrypt/src/pwdbased.c wolfcrypt/src/random.c wolfcrypt/src/rsa.c wolfcrypt/src/sha.c wolfcrypt/src/sha256.c wolfcrypt/src/sha512.c wolfcrypt/src/signature.c wolfcrypt/src/sp_int.c wolfcrypt/src/wc_encrypt.c wolfcrypt/src/wc_port.c wolfcrypt/src/wolfmath.c "
+keep_c "$WOLF" " src/bio.c src/conf.c src/crl.c src/internal.c src/keys.c src/ocsp.c src/pk.c src/ssl.c src/ssl_asn1.c src/ssl_bn.c src/ssl_certman.c src/ssl_crypto.c src/ssl_load.c src/ssl_misc.c src/ssl_p7p12.c src/ssl_sess.c src/tls.c src/wolfio.c src/x509.c src/x509_str.c wolfcrypt/src/aes.c wolfcrypt/src/arc4.c wolfcrypt/src/asm.c wolfcrypt/src/asn.c wolfcrypt/src/cmac.c wolfcrypt/src/coding.c wolfcrypt/src/cpuid.c wolfcrypt/src/des3.c wolfcrypt/src/dh.c wolfcrypt/src/dsa.c wolfcrypt/src/ecc.c wolfcrypt/src/error.c wolfcrypt/src/evp.c wolfcrypt/src/hash.c wolfcrypt/src/hmac.c wolfcrypt/src/kdf.c wolfcrypt/src/logging.c wolfcrypt/src/md4.c wolfcrypt/src/md5.c wolfcrypt/src/memory.c wolfcrypt/src/misc.c wolfcrypt/src/pkcs12.c wolfcrypt/src/pwdbased.c wolfcrypt/src/random.c wolfcrypt/src/rsa.c wolfcrypt/src/sha.c wolfcrypt/src/sha256.c wolfcrypt/src/sha512.c wolfcrypt/src/signature.c wolfcrypt/src/sp_int.c wolfcrypt/src/wc_encrypt.c wolfcrypt/src/wc_port.c wolfcrypt/src/wolfmath.c "
 mkdir -p "$WORK/srcpkg/ruckus-legacy-ap-fixes/scripts" "$WORK/srcpkg/ruckus-legacy-ap-fixes/src"
 cp -R "$HAP" "$WOLF" "$WORK/srcpkg/"
 cp "$BASE/scripts/build-radiusd.sh" "$WORK/srcpkg/ruckus-legacy-ap-fixes/scripts/"
@@ -128,11 +128,13 @@ export ZIG_GLOBAL_CACHE_DIR=$WORK/zig-cache ZIG_LOCAL_CACHE_DIR=$WORK/zig-cache
 SIZE_FLAGS="-Os -ffunction-sections -fdata-sections"
 
 # wolfSSL: static only, its hostapd profile, single-threaded (hostapd is; it also keeps out the 64-bit atomics 32-bit
-# MIPS and PowerPC lack), portable C, no tests or examples.
+# MIPS and PowerPC lack), portable C, no tests or examples. PEAP and TTLS run TLS 1.2 (as the controller's own EAP server
+# does) with AES, so TLS 1.3 and ChaCha20/Poly1305 are left out: about a tenth of the binary.
 cd "$WOLF"
 ./autogen.sh >"$WORK/ssl-configure.log" 2>&1 || { tail -40 "$WORK/ssl-configure.log" >&2; exit 1; }
 ./configure --host="$CHOST" --enable-static --disable-shared --enable-wpas --enable-singlethreaded \
     --disable-asm --disable-examples --disable-crypttests --disable-benchmark --enable-reproducible-build \
+    --disable-tls13 --disable-chacha --disable-poly1305 \
     CC="$WORK/zig-cc" AR="$WORK/zig-ar" RANLIB="$WORK/zig-ranlib" CFLAGS="$SIZE_FLAGS" >>"$WORK/ssl-configure.log" 2>&1 \
     || { tail -40 "$WORK/ssl-configure.log" >&2; exit 1; }
 make -j"$(nproc)" src/libwolfssl.la >"$WORK/ssl-make.log" 2>&1 || { tail -40 "$WORK/ssl-make.log" >&2; exit 1; }
@@ -148,6 +150,9 @@ make -C hostapd -j"$(nproc)" hostapd V=1 \
     >"$WORK/hostapd-make.log" 2>&1 || { grep -E "error|Error" "$WORK/hostapd-make.log" | head -30 >&2; tail -20 "$WORK/hostapd-make.log" >&2; exit 1; }
 
 cp -f hostapd/hostapd "$OUT/rmc-radiusd-$ARCH"
+# The same, gzipped as tightly as gzip allows (zopfli, deterministic): what an AP keeps on flash when the binary itself
+# does not fit, unpacked with gunzip or zlib's minigzip.
+zopfli -c --i100 "$OUT/rmc-radiusd-$ARCH" > "$OUT/rmc-radiusd-$ARCH.gz"
 cp -f COPYING "$OUT/COPYING.hostapd"
 cp -f "$WORK/wolfssl-$WOLFSSL_VERSION-stable/COPYING" "$OUT/COPYING.wolfssl"
 cp -f "$(dirname "$ZIG")/lib/libc/musl/COPYRIGHT" "$OUT/COPYRIGHT.musl"

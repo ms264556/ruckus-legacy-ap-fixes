@@ -163,9 +163,13 @@ changes three things in hostapd:
 
 | File | CPU | Size | Proven on |
 |---|---|---|---|
-| `rmc-radiusd-arm` | ARMv7 little-endian | 0.8 MB | R560 (7.2), R760 (7.1.1) |
-| `rmc-radiusd-mips` | MIPS32r2 big-endian | 1.2 MB | R500 (5.2.2), H500 (3.6.2), ZF7372 (2.6) |
-| `rmc-radiusd-ppc` | PowerPC 440 class, big-endian | 1.0 MB | R700 (5.1.1) |
+| `rmc-radiusd-arm` | ARMv7 little-endian | 741 KB (370 KB `.gz`) | R560 (7.2), R760 (7.1.1) |
+| `rmc-radiusd-mips` | MIPS32r2 big-endian | 1.09 MB (418 KB `.gz`) | R500 (5.2.2), H500 (3.6.2), ZF7372, ZF7962 (2.6) |
+| `rmc-radiusd-ppc` | PowerPC 440 class, big-endian | 920 KB (428 KB `.gz`) | R700 (5.1.1) |
+
+TLS 1.3 and ChaCha20/Poly1305 are left out (PEAP and TTLS run TLS 1.2 with AES), and each
+`rmc-radiusd-<arch>.gz` is the binary gzipped with zopfli, for APs that keep it compressed on
+flash and unpack it with `gunzip` or zlib's `minigzip`.
 
 wolfSSL is GPL-2.0-or-later, so each `rmc-radiusd-<arch>` is too, as a whole. The
 script downloads the pinned hostapd and wolfSSL releases, removes every file the
