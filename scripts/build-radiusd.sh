@@ -46,7 +46,11 @@ esac
 export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-0}
 export LC_ALL=C TZ=UTC
 
-WORK=$(mktemp -d "${TMPDIR:-/tmp}/radiusd-$ARCH.XXXXXX")
+# A fixed work folder, not mktemp's: OpenSSL keeps source paths and its compiler command line in the binary, so a
+# random folder name changes every build's bytes. Two builds of one architecture at once would share it.
+WORK=/tmp/rmc-radiusd-build-$ARCH
+rm -rf "$WORK"
+mkdir -p "$WORK"
 trap 'rm -rf "$WORK"' EXIT
 DL=${DOWNLOADS:-$WORK/dl}
 mkdir -p "$DL" "$OUT"
