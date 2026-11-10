@@ -8,7 +8,8 @@
 #   iperf3-<arch>, LICENSE.iperf3, COPYRIGHT.musl    static iperf3 (scripts/build-iperf3.sh), when built
 #   rmc-urlfilter-<arch>                           the uf_agent stand-in (scripts/build-urlfilter.sh), when built
 #   rmc-dpi-shim-<arch>.so                         avpd's DPI memory-gate shim (scripts/build-urlfilter.sh), when built
-#   rmc-radiusd-<arch>, COPYING.hostapd, LICENSE.openssl   hostapd's RADIUS server (scripts/build-radiusd.sh), when built
+#   rmc-radiusd-<arch>, rmc-radiusd-src.tar.xz, COPYING.hostapd, COPYING.wolfssl
+#                                                  hostapd's RADIUS server and its source (scripts/build-radiusd.sh), when built
 # plus a single release/SHA256SUMS over all of them. CI uploads release/,
 # attests every file in it, and attaches them to the GitHub release.
 #
@@ -57,8 +58,9 @@ for f in rmc-urlfilter-mips rmc-urlfilter-ppc rmc-urlfilter-arm rmc-dpi-shim-mip
     echo "release asset: $f"
 done
 
-# hostapd's RADIUS server (scripts/build-radiusd.sh), loose, with the licences it carries beside musl's.
-for f in rmc-radiusd-mips rmc-radiusd-ppc rmc-radiusd-arm COPYING.hostapd LICENSE.openssl; do
+# hostapd's RADIUS server (scripts/build-radiusd.sh), loose, with its corresponding source (wolfSSL is GPL) and the
+# licences it carries beside musl's.
+for f in rmc-radiusd-mips rmc-radiusd-ppc rmc-radiusd-arm rmc-radiusd-src.tar.xz COPYING.hostapd COPYING.wolfssl; do
     [ -f "$BASE/out/radiusd/$f" ] || continue
     cp -f "$BASE/out/radiusd/$f" "$REL/$f"
     echo "release asset: $f"

@@ -147,8 +147,9 @@ The H500 (125 508 kB) then filters, with about 18 MB still free.
 ## RADIUS server for on-AP sign-ins
 
 `scripts/build-radiusd.sh` builds `rmc-radiusd-<arch>`: hostapd 2.11's RADIUS and
-EAP server (`driver=none`, no radio), statically linked against OpenSSL 3.5.4
-(legacy provider built in, for MD4 and DES) and musl with the same pinned Zig. An
+EAP server (`driver=none`, no radio), statically linked against wolfSSL 5.7.6
+(its hostapd profile, with MD4 and DES for MSCHAPv2) and musl with the same pinned
+Zig. The build needs autoconf, automake and libtool for wolfSSL. An
 AP runs it to check WPA2/WPA3-Enterprise usernames and passwords itself, so
 sign-ins keep working while the controller is unreachable: PEAP/MSCHAPv2,
 TTLS/PAP, TTLS/MSCHAPv2 and TTLS/EAP-MSCHAPv2. `src/radiusd/apply-patches.py`
@@ -162,9 +163,17 @@ changes three things in hostapd:
 
 | File | CPU | Size | Proven on |
 |---|---|---|---|
-| `rmc-radiusd-arm` | ARMv7 little-endian | 2.9 MB | R560 (7.2), R760 (7.1.1) |
-| `rmc-radiusd-mips` | MIPS32r2 big-endian | 4.7 MB (1.7 MB gzipped) | R500 (5.2.2), H500 (3.6.2), ZF7372 (2.6) |
-| `rmc-radiusd-ppc` | PowerPC 440 class, big-endian | 3.9 MB | R700 (5.1.1) |
+| `rmc-radiusd-arm` | ARMv7 little-endian | 0.8 MB | R560 (7.2), R760 (7.1.1) |
+| `rmc-radiusd-mips` | MIPS32r2 big-endian | 1.2 MB | R500 (5.2.2), H500 (3.6.2), ZF7372 (2.6) |
+| `rmc-radiusd-ppc` | PowerPC 440 class, big-endian | 1.0 MB | R700 (5.1.1) |
+
+wolfSSL is GPL-2.0-or-later, so each `rmc-radiusd-<arch>` is too, as a whole. The
+script downloads the pinned hostapd and wolfSSL releases, removes every file the
+build does not compile (other platforms, assembly, tests, unused C files; every
+header and build file stays), packs the result with its own script and patches as
+`rmc-radiusd-src.tar.xz` (about 2.7 MB), and then builds from exactly those trees,
+so the archive is complete corresponding source by construction. The builds are
+byte-for-byte reproducible.
 
 ## Licences
 
@@ -175,8 +184,9 @@ iperf3 (BSD-3-Clause) and musl (MIT); their licences ship beside them as
 `LICENSE.iperf3` and `COPYRIGHT.musl`. `src/urlfilter` (a userspace tool, not a
 module) is MIT, like the scripts; its builds link musl. `src/radiusd` (a patch
 script and a build configuration) is MIT too; the `rmc-radiusd-<arch>` files are
-hostapd (BSD-3-Clause) linked with OpenSSL (Apache-2.0) and musl, and their
-licences ship beside them as `COPYING.hostapd` and `LICENSE.openssl`. See
+hostapd (BSD-3-Clause) linked with wolfSSL (GPL-2.0-or-later) and musl, so they
+are GPL-2.0-or-later; their licences ship beside them as `COPYING.hostapd` and
+`COPYING.wolfssl`, and their source as `rmc-radiusd-src.tar.xz`. See
 [`NOTICE.md`](NOTICE.md).
 
 This project is not affiliated with or endorsed by Ruckus Networks or CommScope.

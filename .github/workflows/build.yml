@@ -36,7 +36,7 @@ jobs:
             gcc-mips-linux-gnu binutils-mips-linux-gnu \
             gcc-powerpc-linux-gnu binutils-powerpc-linux-gnu \
             gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi \
-            python3 file
+            python3 file autoconf automake libtool
           mips-linux-gnu-gcc --version | head -1
           powerpc-linux-gnu-gcc --version | head -1
           arm-linux-gnueabi-gcc --version | head -1
@@ -115,9 +115,10 @@ jobs:
           each \`rmc-dpi-shim-<arch>.so\` lets avpd run its web filter on 3.6 APs with
           200 MB of RAM or less (src/urlfilter, no libc, built here). Each
           \`rmc-radiusd-<arch>\` is hostapd 2.11's RADIUS/EAP server, statically linked
-          with OpenSSL 3.5 and musl, for checking WPA2/WPA3-Enterprise sign-ins on the
-          AP itself (src/radiusd, built here); \`COPYING.hostapd\` and
-          \`LICENSE.openssl\` are its licences.
+          with wolfSSL 5.7 and musl, for checking WPA2/WPA3-Enterprise sign-ins on the
+          AP itself (src/radiusd, built here). wolfSSL makes it GPL-2.0-or-later as a
+          whole: \`rmc-radiusd-src.tar.xz\` is its complete corresponding source, and
+          \`COPYING.hostapd\` and \`COPYING.wolfssl\` are its licences.
 
           Verify any asset: \`gh attestation verify <file> --repo ${{ github.repository }}\`
           then check it against \`SHA256SUMS\`.

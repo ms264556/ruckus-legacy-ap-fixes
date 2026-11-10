@@ -22,9 +22,11 @@ as `LICENSE.iperf3` and `COPYRIGHT.musl`.
 The `rmc-radiusd-<arch>` release files are static builds of upstream
 [hostapd](https://w1.fi/hostapd/) 2.11 (BSD-3-Clause, © Jouni Malinen and
 contributors), changed by `src/radiusd/apply-patches.py`, linked against
-[OpenSSL](https://www.openssl.org/) 3.5.4 (Apache-2.0) and musl. Their licence
-texts are published beside them as `COPYING.hostapd`, `LICENSE.openssl` and
-`COPYRIGHT.musl`. No other third-party code is distributed.
+[wolfSSL](https://www.wolfssl.com/) 5.7.6 (GPL-2.0-or-later, © wolfSSL Inc.) and
+musl. wolfSSL's licence makes each binary GPL-2.0-or-later as a whole; its
+complete corresponding source is published beside it as `rmc-radiusd-src.tar.xz`,
+with the licence texts `COPYING.hostapd`, `COPYING.wolfssl` and `COPYRIGHT.musl`.
+No other third-party code is distributed.
 
 ## No vendor code is redistributed
 
