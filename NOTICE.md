@@ -17,8 +17,14 @@ The `iperf3-<arch>` release files are static builds of upstream
 [iperf3](https://github.com/esnet/iperf) 3.21 (BSD-3-Clause, © The Regents of
 the University of California) linked against [musl](https://musl.libc.org/)
 (MIT), as bundled with Zig 0.14.1. Their licence texts are published beside them
-as `LICENSE.iperf3` and `COPYRIGHT.musl`. No other third-party code is
-distributed.
+as `LICENSE.iperf3` and `COPYRIGHT.musl`.
+
+The `rmc-radiusd-<arch>` release files are static builds of upstream
+[hostapd](https://w1.fi/hostapd/) 2.11 (BSD-3-Clause, © Jouni Malinen and
+contributors), changed by `src/radiusd/apply-patches.py`, linked against
+[OpenSSL](https://www.openssl.org/) 3.5.4 (Apache-2.0) and musl. Their licence
+texts are published beside them as `COPYING.hostapd`, `LICENSE.openssl` and
+`COPYRIGHT.musl`. No other third-party code is distributed.
 
 ## No vendor code is redistributed
 

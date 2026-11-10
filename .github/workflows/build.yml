@@ -59,6 +59,12 @@ jobs:
           ARCH=ppc  ./scripts/build-urlfilter.sh
           ARCH=arm  ./scripts/build-urlfilter.sh
 
+      - name: Build static rmc-radiusd
+        run: |
+          ARCH=mips ./scripts/build-radiusd.sh
+          ARCH=ppc  ./scripts/build-radiusd.sh
+          ARCH=arm  ./scripts/build-radiusd.sh
+
       - name: Package
         run: ./scripts/package.sh
 
@@ -107,7 +113,11 @@ jobs:
           Each \`rmc-urlfilter-<arch>\` is a static stand-in for the URL filter agent
           that some SmartZone 3.6 images lack (src/urlfilter, musl, built here), and
           each \`rmc-dpi-shim-<arch>.so\` lets avpd run its web filter on 3.6 APs with
-          200 MB of RAM or less (src/urlfilter, no libc, built here).
+          200 MB of RAM or less (src/urlfilter, no libc, built here). Each
+          \`rmc-radiusd-<arch>\` is hostapd 2.11's RADIUS/EAP server, statically linked
+          with OpenSSL 3.5 and musl, for checking WPA2/WPA3-Enterprise sign-ins on the
+          AP itself (src/radiusd, built here); \`COPYING.hostapd\` and
+          \`LICENSE.openssl\` are its licences.
 
           Verify any asset: \`gh attestation verify <file> --repo ${{ github.repository }}\`
           then check it against \`SHA256SUMS\`.

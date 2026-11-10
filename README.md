@@ -144,6 +144,28 @@ function answering "supported", built as a libc-free `rmc-dpi-shim-<arch>.so`
 and preloaded into `avpd` alone (`LD_PRELOAD=… /usr/sbin/avpd -i cif0 -D`).
 The H500 (125 508 kB) then filters, with about 18 MB still free.
 
+## RADIUS server for on-AP sign-ins
+
+`scripts/build-radiusd.sh` builds `rmc-radiusd-<arch>`: hostapd 2.11's RADIUS and
+EAP server (`driver=none`, no radio), statically linked against OpenSSL 3.5.4
+(legacy provider built in, for MD4 and DES) and musl with the same pinned Zig. An
+AP runs it to check WPA2/WPA3-Enterprise usernames and passwords itself, so
+sign-ins keep working while the controller is unreachable: PEAP/MSCHAPv2,
+TTLS/PAP, TTLS/MSCHAPv2 and TTLS/EAP-MSCHAPv2. `src/radiusd/apply-patches.py`
+changes three things in hostapd:
+
+* phase-2 names match without a `DOMAIN\` prefix and ignoring ASCII case;
+* TTLS/PAP is checked against a stored NT hash, so the users file holds no
+  plaintext passwords;
+* the server binds 127.0.0.2 only. SmartZone 2.x, 3.x and 5.1 send RADIUS over
+  TCP when the server is exactly 127.0.0.1, and nothing off the AP can reach it.
+
+| File | CPU | Size | Proven on |
+|---|---|---|---|
+| `rmc-radiusd-arm` | ARMv7 little-endian | 2.9 MB | R560 (7.2), R760 (7.1.1) |
+| `rmc-radiusd-mips` | MIPS32r2 big-endian | 4.7 MB (1.7 MB gzipped) | R500 (5.2.2), H500 (3.6.2), ZF7372 (2.6) |
+| `rmc-radiusd-ppc` | PowerPC 440 class, big-endian | 3.9 MB | R700 (5.1.1) |
+
 ## Licences
 
 Kernel-module sources under `src/` are **GPL-2.0-only**; the build scripts,
@@ -151,6 +173,10 @@ Kernel-module sources under `src/` are **GPL-2.0-only**; the build scripts,
 redistributed. The `iperf3-<arch>` release files are built from upstream
 iperf3 (BSD-3-Clause) and musl (MIT); their licences ship beside them as
 `LICENSE.iperf3` and `COPYRIGHT.musl`. `src/urlfilter` (a userspace tool, not a
-module) is MIT, like the scripts; its builds link musl. See [`NOTICE.md`](NOTICE.md).
+module) is MIT, like the scripts; its builds link musl. `src/radiusd` (a patch
+script and a build configuration) is MIT too; the `rmc-radiusd-<arch>` files are
+hostapd (BSD-3-Clause) linked with OpenSSL (Apache-2.0) and musl, and their
+licences ship beside them as `COPYING.hostapd` and `LICENSE.openssl`. See
+[`NOTICE.md`](NOTICE.md).
 
 This project is not affiliated with or endorsed by Ruckus Networks or CommScope.

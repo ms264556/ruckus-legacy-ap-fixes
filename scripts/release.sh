@@ -8,6 +8,7 @@
 #   iperf3-<arch>, LICENSE.iperf3, COPYRIGHT.musl    static iperf3 (scripts/build-iperf3.sh), when built
 #   rmc-urlfilter-<arch>                           the uf_agent stand-in (scripts/build-urlfilter.sh), when built
 #   rmc-dpi-shim-<arch>.so                         avpd's DPI memory-gate shim (scripts/build-urlfilter.sh), when built
+#   rmc-radiusd-<arch>, COPYING.hostapd, LICENSE.openssl   hostapd's RADIUS server (scripts/build-radiusd.sh), when built
 # plus a single release/SHA256SUMS over all of them. CI uploads release/,
 # attests every file in it, and attaches them to the GitHub release.
 #
@@ -53,6 +54,13 @@ done
 for f in rmc-urlfilter-mips rmc-urlfilter-ppc rmc-urlfilter-arm rmc-dpi-shim-mips.so rmc-dpi-shim-ppc.so rmc-dpi-shim-arm.so; do
     [ -f "$BASE/out/urlfilter/$f" ] || continue
     cp -f "$BASE/out/urlfilter/$f" "$REL/$f"
+    echo "release asset: $f"
+done
+
+# hostapd's RADIUS server (scripts/build-radiusd.sh), loose, with the licences it carries beside musl's.
+for f in rmc-radiusd-mips rmc-radiusd-ppc rmc-radiusd-arm COPYING.hostapd LICENSE.openssl; do
+    [ -f "$BASE/out/radiusd/$f" ] || continue
+    cp -f "$BASE/out/radiusd/$f" "$REL/$f"
     echo "release asset: $f"
 done
 
