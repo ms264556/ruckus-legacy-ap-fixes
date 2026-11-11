@@ -163,13 +163,62 @@ changes three things in hostapd:
 
 | File | CPU | Size | Proven on |
 |---|---|---|---|
-| `rmc-radiusd-arm` | ARMv7 little-endian | 741 KB (370 KB `.gz`) | R560 (7.2), R760 (7.1.1) |
-| `rmc-radiusd-mips` | MIPS32r2 big-endian | 1.09 MB (418 KB `.gz`) | R500 (5.2.2), H500 (3.6.2), ZF7372, ZF7962 (2.6) |
-| `rmc-radiusd-ppc` | PowerPC 440 class, big-endian | 920 KB (428 KB `.gz`) | R700 (5.1.1) |
+| `rmc-radiusd-arm` | ARMv7 little-endian | 766 KB (384 KB `.gz`) | R560 (7.2), R760 (7.1.1) |
+| `rmc-radiusd-mips` | MIPS32r2 big-endian | 1.12 MB (435 KB `.gz`) | R500 (5.2.2), H500 (3.6.2), ZF7372, ZF7962 (2.6) |
+| `rmc-radiusd-ppc` | PowerPC 440 class, big-endian | 952 KB (445 KB `.gz`) | R700 (5.1.1) |
 
 TLS 1.3 and ChaCha20/Poly1305 are left out (PEAP and TTLS run TLS 1.2 with AES), and each
 `rmc-radiusd-<arch>.gz` is the binary gzipped with zopfli, for APs that keep it compressed on
 flash and unpack it with `gunzip` or zlib's `minigzip`.
+
+### Guest passes without the controller
+
+`rmc-radiusd` has two more roles, chosen by its first argument (any other first
+argument runs the RADIUS server as before). Both check a guest pass against a
+pass list the controller writes to the AP, so guests keep signing in while the
+controller is unreachable. Their sources are `src/radiusd/guest/`; they use
+hostapd's own SHA-256 and HMAC, and nothing but libc otherwise.
+
+```sh
+rmc-radiusd guestd --passes <file> --bindings <file> --layout short|long \
+                   --status run:<path>|int:<path> [--log <file>] [-B] [-P <pidfile>]
+rmc-radiusd portal --passes <file> --bindings <file> --address <AP IP> \
+                   [--terms] [--log <file>] [-B] [-P <pidfile>]
+```
+
+* **guestd** (SmartZone 3.6.2 to 7.x) puts itself in front of idm. authd sends
+  every guest pass to idm's datagram socket `/var/run/idm`, and idm asks the
+  controller. guestd hard-links idm's socket to `/var/run/idm.real`, binds its own
+  socket and renames it over `/var/run/idm`. It passes every message on unchanged,
+  descriptors included, from one relay socket per original sender. It answers a
+  guest-pass request (id 5) itself only when the controller is unreachable: the
+  status file says disconnected, the tunnel's 127.0.0.1:9081 refuses, or idm has
+  not replied within 3 s. A late reply from idm is then dropped. When idm
+  restarts, guestd takes the socket over again, and on SIGTERM it renames
+  `/var/run/idm.real` back. `--layout short` is 3.6.2 to 5.2.2 (a 17-byte pass
+  field); `long` is 6.1.2 and later. `--status run:<path>` counts as connected while
+  the file reads `RUN` (3.6.2 `wsgclientState`); `int:<path>` counts as connected
+  while the file holds a non-zero number (`.cubic_status`, `.cia_status`).
+* **portal** (SCG 2.6, which has no AP-hosted guest portal) serves the WISPr
+  hotspot's redirected HTTP on 8090. It redirects to its own form on 9997 with a
+  signed ticket naming the device (from the `client_mac` header `wispr_http`
+  adds, or from the ARP table). It checks the pass and authorises the station
+  with hostapd's control command `AUTH mac <mac> proxy 0 u:<uuid> s:<seconds>
+  uk:<uuid>`, sent to each socket in `/var/run/hostapd` until one answers `OK`.
+  With `--terms`, the form is an accept button instead.
+
+Both stay in the foreground unless given `-B`, and log to stderr (syslog when
+detached) unless given `--log`. Each checks the pass list's file every second
+and reloads it when it changes; SIGHUP reloads it at once. Every pass accepted
+without the controller appends one line to the bindings file
+(`<unix seconds> <uuid> <mac> first|device`), opening and closing the file for
+each line, so the controller can collect it by renaming it away. The checks
+match the controller's: the code with spaces and dashes dropped, revocation,
+expiry, the device limit, 10 attempts per device per 5 minutes and 30 a minute
+per AP. Every pass is refused while the AP's clock is earlier than the list's
+own timestamp. Neither role has run on an AP yet. `tests/guest/run.sh` tests both roles with stand-ins for idm,
+authd, the controller's port and hostapd, on the build host or under qemu
+(`tests/guest/run.sh qemu-mips out/radiusd/rmc-radiusd-mips`).
 
 wolfSSL is GPL-2.0-or-later, so each `rmc-radiusd-<arch>` is too, as a whole. The
 script downloads the pinned hostapd and wolfSSL releases, removes every file the
@@ -187,7 +236,7 @@ redistributed. The `iperf3-<arch>` release files are built from upstream
 iperf3 (BSD-3-Clause) and musl (MIT); their licences ship beside them as
 `LICENSE.iperf3` and `COPYRIGHT.musl`. `src/urlfilter` (a userspace tool, not a
 module) is MIT, like the scripts; its builds link musl. `src/radiusd` (a patch
-script and a build configuration) is MIT too; the `rmc-radiusd-<arch>` files are
+script, a build configuration and the guest-pass roles) and `tests/` are MIT too; the `rmc-radiusd-<arch>` files are
 hostapd (BSD-3-Clause) linked with wolfSSL (GPL-2.0-or-later) and musl, so they
 are GPL-2.0-or-later; their licences ship beside them as `COPYING.hostapd` and
 `COPYING.wolfssl`, and their source as `rmc-radiusd-src.tar.xz`. See

@@ -11,13 +11,17 @@ building something unintended.
 3. src/radius/radius_server.c: the IPv4 socket binds 127.0.0.2 instead of every address. The AP's RADIUS client asks
    it there because SmartZone 2.x, 3.x and 5.1 firmware (librksradius) switch to TCP for exactly 127.0.0.1, and the
    reply has to come from the address the client sent to. Nothing off the AP can reach it.
+4. hostapd/main.c and hostapd/Makefile: the guest-pass roles of guest/ (copied into hostapd/) are linked in, and
+   "rmc-radiusd guestd ..." or "rmc-radiusd portal ..." runs one of them instead of the RADIUS server.
 
 Usage: apply-patches.py <hostapd source dir>
 """
 import pathlib
+import shutil
 import sys
 
 root = pathlib.Path(sys.argv[1])
+here = pathlib.Path(__file__).resolve().parent
 
 
 def replace(rel, old, new):
@@ -211,5 +215,39 @@ replace("src/radius/radius_server.c",
 	addr.sin_addr.s_addr = htonl(0x7f000002); /* 127.0.0.2 only */
 	addr.sin_port = htons(port);
 	if (bind(s, (struct sockaddr *) &addr, sizeof(addr)) < 0) {""")
+
+GUEST_SOURCES = ["rmc-guest.h", "rmc-guest.c", "rmc-guestd.c", "rmc-portal.c", "rmc-guest-crypto.c"]
+for name in GUEST_SOURCES:
+    shutil.copyfile(here / "guest" / name, root / "hostapd" / name)
+
+replace("hostapd/Makefile",
+"""OBJS += main.o
+""",
+"""OBJS += main.o
+OBJS += rmc-guest.o rmc-guestd.o rmc-portal.o rmc-guest-crypto.o
+""")
+
+replace("hostapd/main.c",
+"""int main(int argc, char *argv[])
+{""",
+"""int rmc_guest_main(int argc, char *argv[]);
+
+int main(int argc, char *argv[])
+{""")
+
+replace("hostapd/main.c",
+"""	if (os_program_init())
+		return -1;
+
+	os_memset(&interfaces, 0, sizeof(interfaces));""",
+"""	ret = rmc_guest_main(argc, argv);
+	if (ret != -1)
+		return ret;
+	ret = 1;
+
+	if (os_program_init())
+		return -1;
+
+	os_memset(&interfaces, 0, sizeof(interfaces));""")
 
 print("patched", root)

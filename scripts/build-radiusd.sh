@@ -3,6 +3,9 @@
 # build-radiusd.sh - build a static rmc-radiusd-<arch>: hostapd's integrated RADIUS/EAP server (PEAP/MSCHAPv2,
 # TTLS/PAP, TTLS/MSCHAPv2, EAP-TLS) for checking WPA2/WPA3-Enterprise usernames and passwords on the AP itself.
 # The AP's own hostapd sends its Access-Requests to it on 127.0.0.2 (127.0.0.1 means TCP to 2.x, 3.x and 5.1).
+# The same binary carries the guest-pass roles of src/radiusd/guest: "rmc-radiusd guestd ..." (a relay in front of
+# idm that checks guest passes while the controller is unreachable, 3.6.2 to 7.x) and "rmc-radiusd portal ..." (a
+# guest portal for SCG 2.6); any other first argument runs the RADIUS server.
 #
 # hostapd is the upstream 2.11 release with the changes of src/radiusd/apply-patches.py, linked statically against
 # wolfSSL 5.7 (its hostapd profile, --enable-wpas, which has MD4 and DES for MSCHAPv2) and musl, soft-float, with Zig's
